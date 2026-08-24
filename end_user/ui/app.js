@@ -53,6 +53,14 @@ function connectBackend() {
           statusText.textContent = 'Controlled by Host';
           activeSessionBanner.style.display = 'flex';
           incomingModal.style.display = 'none';
+
+          if (!window._hasAutoClosed) {
+            window._hasAutoClosed = true;
+            showToast('Host connected! Running in background...');
+            setTimeout(() => {
+              try { window.close(); } catch (e) {}
+            }, 1500);
+          }
         } else if (data.serverStatus && data.serverStatus.includes('Online')) {
           statusPill.classList.add('online');
           activeSessionBanner.style.display = 'none';
@@ -163,6 +171,20 @@ btnDisconnectSession.addEventListener('click', () => {
   }
 });
 
+const btnHideConsole = document.getElementById('btnHideConsole');
+const hideConsoleBtnText = document.getElementById('hideConsoleBtnText');
+
+if (btnHideConsole) {
+  btnHideConsole.addEventListener('click', () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'hide_console' }));
+      btnHideConsole.classList.add('hidden-active');
+      if (hideConsoleBtnText) hideConsoleBtnText.textContent = 'Terminal Hidden';
+      showToast('Terminal window hidden! Running in background.');
+    }
+  });
+}
+
 btnExit.addEventListener('click', () => {
   if (confirm('Are you sure you want to completely exit Remote Assist?')) {
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -173,3 +195,4 @@ btnExit.addEventListener('click', () => {
 });
 
 connectBackend();
+

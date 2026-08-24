@@ -8,6 +8,7 @@ echo       REMOTE ASSIST - END USER SHARING UTILITY
 echo =========================================================
 echo.
 
+
 where node >nul 2>nul
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Node.js is not installed or not in PATH!
@@ -29,9 +30,11 @@ if not exist "RemoteCapture.exe" (
 
 if not exist node_modules (
     echo Installing dependencies...
-    call npm install
+    call npm install >nul 2>nul
 )
 
 echo Starting End-User Agent...
 node agent.js
 pause
+
+

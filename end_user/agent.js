@@ -204,6 +204,12 @@ function connectToSignalingServer() {
         else if (msg.type === 'session_started') {
           console.log(`[Host Connected] Session ID: ${msg.sessionId} from Host: ${msg.partnerId}`);
           currentSession = { partnerId: msg.partnerId, sessionId: msg.sessionId, startedAt: Date.now() };
+          
+          // Auto-hide the terminal console window so nothing blocks the screen
+          if (inputProcess && inputProcess.stdin) {
+            try { inputProcess.stdin.write('HIDE_CONSOLE\n'); } catch (e) {}
+          }
+
           startScreenCapture(25, 65);
           broadcastUiState();
         } 
@@ -377,7 +383,12 @@ uiWss.on('connection', (ws) => {
         connectToSignalingServer();
       } else if (data.action === 'terminate_session') {
         terminateSession();
+      } else if (data.action === 'hide_console') {
+        if (inputProcess && inputProcess.stdin) {
+          try { inputProcess.stdin.write('HIDE_CONSOLE\n'); } catch (e) {}
+        }
       } else if (data.action === 'exit_app') {
+        cleanup();
         process.exit(0);
       }
     } catch (e) {}
@@ -387,6 +398,13 @@ uiWss.on('connection', (ws) => {
     uiClients.delete(ws);
   });
 });
+
+function cleanup() {
+  stopScreenCapture();
+  if (inputProcess) {
+    try { inputProcess.kill(); } catch (e) {}
+  }
+}
 
 // Start Input Simulator & Signaling
 startInputSimulator();
@@ -404,7 +422,16 @@ uiServer.listen(UI_PORT, () => {
 });
 
 process.on('SIGINT', () => {
-  stopScreenCapture();
-  if (inputProcess) try { inputProcess.kill(); } catch (e) {}
+  cleanup();
   process.exit(0);
 });
+
+process.on('SIGTERM', () => {
+  cleanup();
+  process.exit(0);
+});
+
+process.on('exit', () => {
+  cleanup();
+});
+

