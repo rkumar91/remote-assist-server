@@ -8,7 +8,7 @@ const UI_PORT = 48200;
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 
 let config = {
-  serverUrl: 'ws://localhost:9090',
+  serverUrl: 'wss://remote-assist-server-et7x.onrender.com',
   lastTargetId: ''
 };
 

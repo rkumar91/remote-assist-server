@@ -1,7 +1,7 @@
 {
-  "serverUrl": "ws://localhost:9090",
+  "serverUrl": "wss://remote-assist-server-et7x.onrender.com",
   "deviceId": "706 461 803",
   "pin": "560194",
-  "runInBackground": false,
+  "runInBackground": true,
   "autoApprove": true
 }

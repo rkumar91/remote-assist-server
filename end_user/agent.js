@@ -9,7 +9,7 @@ const CONFIG_FILE = path.join(__dirname, 'config.json');
 
 // --- Configuration & Credentials ---
 let config = {
-  serverUrl: 'ws://localhost:9090',
+  serverUrl: 'wss://remote-assist-server-et7x.onrender.com',
   deviceId: generateDeviceId(),
   pin: generatePin(),
   runInBackground: true,
