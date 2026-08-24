@@ -1,0 +1,12 @@
+{
+  "name": "remote-assist-host",
+  "version": "1.0.0",
+  "description": "Host Controller for Remote Assist Utility",
+  "main": "controller.js",
+  "scripts": {
+    "start": "node controller.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
