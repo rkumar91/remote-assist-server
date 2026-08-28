@@ -12,8 +12,78 @@ namespace RemoteAssistCapture
         [DllImport("user32.dll")]
         static extern int GetSystemMetrics(int nIndex);
 
+        [DllImport("user32.dll")]
+        private static extern bool SetProcessDPIAware();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct POINT
+        {
+            public int x;
+            public int y;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct CURSORINFO
+        {
+            public Int32 cbSize;
+            public Int32 flags;
+            public IntPtr hCursor;
+            public POINT ptScreenPos;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct ICONINFO
+        {
+            public bool fIcon;
+            public int xHotspot;
+            public int yHotspot;
+            public IntPtr hbmMask;
+            public IntPtr hbmColor;
+        }
+
+        [DllImport("user32.dll")]
+        static extern bool GetCursorInfo(out CURSORINFO pci);
+
+        [DllImport("user32.dll")]
+        static extern bool GetIconInfo(IntPtr hIcon, out ICONINFO piconinfo);
+
+        [DllImport("user32.dll")]
+        static extern bool DrawIcon(IntPtr hdc, int x, int y, IntPtr hIcon);
+
+        [DllImport("gdi32.dll")]
+        static extern bool DeleteObject(IntPtr hObject);
+
+        private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
+        private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = new IntPtr(-3);
+
         const int SM_CXSCREEN = 0;
         const int SM_CYSCREEN = 1;
+        const Int32 CURSOR_SHOWING = 0x00000001;
+
+        static void EnableDpiAwareness()
+        {
+            try
+            {
+                if (Environment.OSVersion.Version.Major >= 10)
+                {
+                    if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
+                    {
+                        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
+                    }
+                }
+                else
+                {
+                    SetProcessDPIAware();
+                }
+            }
+            catch
+            {
+                try { SetProcessDPIAware(); } catch { }
+            }
+        }
 
         static ImageCodecInfo GetEncoder(ImageFormat format)
         {
@@ -27,6 +97,8 @@ namespace RemoteAssistCapture
 
         static void Main(string[] args)
         {
+            EnableDpiAwareness();
+
             long quality = 65; // Default JPEG quality 65%
             int targetFps = 25; // Target FPS
             int targetWidth = 0;
@@ -56,7 +128,7 @@ namespace RemoteAssistCapture
             using (Graphics g = Graphics.FromImage(rawBmp))
             using (MemoryStream ms = new MemoryStream(65536))
             {
-                // Signal resolution
+                // Signal resolution to parent process
                 byte[] header = System.Text.Encoding.UTF8.GetBytes(string.Format("META:{0}:{1}\n", screenWidth, screenHeight));
                 writer.Write(header);
                 writer.Flush();
@@ -67,6 +139,40 @@ namespace RemoteAssistCapture
                     {
                         var start = DateTime.UtcNow;
                         g.CopyFromScreen(0, 0, 0, 0, new Size(screenWidth, screenHeight), CopyPixelOperation.SourceCopy);
+
+                        // Capture and overlay hardware mouse pointer with accurate hotspot
+                        try
+                        {
+                            CURSORINFO pci;
+                            pci.cbSize = Marshal.SizeOf(typeof(CURSORINFO));
+                            if (GetCursorInfo(out pci))
+                            {
+                                if (pci.flags == CURSOR_SHOWING && pci.hCursor != IntPtr.Zero)
+                                {
+                                    ICONINFO iconInfo;
+                                    int curX = pci.ptScreenPos.x;
+                                    int curY = pci.ptScreenPos.y;
+                                    if (GetIconInfo(pci.hCursor, out iconInfo))
+                                    {
+                                        curX -= iconInfo.xHotspot;
+                                        curY -= iconInfo.yHotspot;
+                                        if (iconInfo.hbmMask != IntPtr.Zero) DeleteObject(iconInfo.hbmMask);
+                                        if (iconInfo.hbmColor != IntPtr.Zero) DeleteObject(iconInfo.hbmColor);
+                                    }
+
+                                    IntPtr hdc = g.GetHdc();
+                                    try
+                                    {
+                                        DrawIcon(hdc, curX, curY, pci.hCursor);
+                                    }
+                                    finally
+                                    {
+                                        g.ReleaseHdc(hdc);
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
 
                         ms.SetLength(0);
 

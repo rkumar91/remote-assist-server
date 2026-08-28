@@ -25,6 +25,15 @@ namespace RemoteAssistInput
         [DllImport("user32.dll")]
         static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+        [DllImport("user32.dll")]
+        private static extern bool SetProcessDPIAware();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
+
+        private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
+        private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = new IntPtr(-3);
+
         const int SW_HIDE = 0;
 
         const int SM_CXSCREEN = 0;
@@ -41,8 +50,32 @@ namespace RemoteAssistInput
         const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
         const uint KEYEVENTF_KEYUP = 0x0002;
 
+        static void EnableDpiAwareness()
+        {
+            try
+            {
+                if (Environment.OSVersion.Version.Major >= 10)
+                {
+                    if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
+                    {
+                        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
+                    }
+                }
+                else
+                {
+                    SetProcessDPIAware();
+                }
+            }
+            catch
+            {
+                try { SetProcessDPIAware(); } catch { }
+            }
+        }
+
         static void Main(string[] args)
         {
+            EnableDpiAwareness();
+
             // Set input encoding to UTF-8
             Console.InputEncoding = System.Text.Encoding.UTF8;
             Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -86,6 +119,12 @@ namespace RemoteAssistInput
                         case "MOUSEDOWN":
                             if (parts.Length >= 2)
                             {
+                                if (parts.Length >= 4)
+                                {
+                                    int x = int.Parse(parts[2]);
+                                    int y = int.Parse(parts[3]);
+                                    SetCursorPos(x, y);
+                                }
                                 string btn = parts[1].ToUpper();
                                 if (btn == "LEFT") mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
                                 else if (btn == "RIGHT") mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, UIntPtr.Zero);
@@ -96,6 +135,12 @@ namespace RemoteAssistInput
                         case "MOUSEUP":
                             if (parts.Length >= 2)
                             {
+                                if (parts.Length >= 4)
+                                {
+                                    int x = int.Parse(parts[2]);
+                                    int y = int.Parse(parts[3]);
+                                    SetCursorPos(x, y);
+                                }
                                 string btn = parts[1].ToUpper();
                                 if (btn == "LEFT") mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
                                 else if (btn == "RIGHT") mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, UIntPtr.Zero);

@@ -131,7 +131,13 @@ function startScreenCapture(fps = 25, quality = 65) {
             if (newlineIdx !== -1) {
               const metaStr = buffer.toString('utf8', 0, newlineIdx);
               buffer = buffer.slice(newlineIdx + 1);
-              console.log(`[Capture Resolution] ${metaStr}`);
+              const metaMatch = metaStr.match(/META:(\d+):(\d+)/);
+              if (metaMatch) {
+                screenResolution.width = parseInt(metaMatch[1], 10);
+                screenResolution.height = parseInt(metaMatch[2], 10);
+                console.log(`[Capture Resolution Synced] ${screenResolution.width}x${screenResolution.height}`);
+                broadcastUiState();
+              }
               continue;
             }
           }
@@ -251,17 +257,35 @@ function handleRemoteControlEvent(evt) {
 
   switch (evt.type) {
     case 'mousemove': {
-      const targetX = Math.round((evt.x / evt.viewportWidth) * screenResolution.width);
-      const targetY = Math.round((evt.y / evt.viewportHeight) * screenResolution.height);
+      const vWidth = evt.viewportWidth || screenResolution.width;
+      const vHeight = evt.viewportHeight || screenResolution.height;
+      const targetX = Math.round((evt.x / vWidth) * screenResolution.width);
+      const targetY = Math.round((evt.y / vHeight) * screenResolution.height);
       inputProcess.stdin.write(`MOVE ${targetX} ${targetY}\n`);
       break;
     }
     case 'mousedown': {
-      inputProcess.stdin.write(`MOUSEDOWN ${evt.button}\n`);
+      if (evt.x !== undefined && (evt.viewportWidth || screenResolution.width)) {
+        const vWidth = evt.viewportWidth || screenResolution.width;
+        const vHeight = evt.viewportHeight || screenResolution.height;
+        const targetX = Math.round((evt.x / vWidth) * screenResolution.width);
+        const targetY = Math.round((evt.y / vHeight) * screenResolution.height);
+        inputProcess.stdin.write(`MOUSEDOWN ${evt.button} ${targetX} ${targetY}\n`);
+      } else {
+        inputProcess.stdin.write(`MOUSEDOWN ${evt.button}\n`);
+      }
       break;
     }
     case 'mouseup': {
-      inputProcess.stdin.write(`MOUSEUP ${evt.button}\n`);
+      if (evt.x !== undefined && (evt.viewportWidth || screenResolution.width)) {
+        const vWidth = evt.viewportWidth || screenResolution.width;
+        const vHeight = evt.viewportHeight || screenResolution.height;
+        const targetX = Math.round((evt.x / vWidth) * screenResolution.width);
+        const targetY = Math.round((evt.y / vHeight) * screenResolution.height);
+        inputProcess.stdin.write(`MOUSEUP ${evt.button} ${targetX} ${targetY}\n`);
+      } else {
+        inputProcess.stdin.write(`MOUSEUP ${evt.button}\n`);
+      }
       break;
     }
     case 'wheel': {

@@ -150,15 +150,19 @@ function handleIncomingFrame(blob) {
 // --- Mouse Event Tracking ---
 function getCanvasCoordinates(e) {
   const rect = remoteCanvas.getBoundingClientRect();
-  const scaleX = remoteCanvas.width / rect.width;
-  const scaleY = remoteCanvas.height / rect.height;
+  if (!rect.width || !rect.height || !remoteCanvas.width || !remoteCanvas.height) {
+    return { x: 0, y: 0, viewportWidth: remoteCanvas.width || 1920, viewportHeight: remoteCanvas.height || 1080 };
+  }
 
   const clientX = e.clientX - rect.left;
   const clientY = e.clientY - rect.top;
 
+  const clampedX = Math.max(0, Math.min(rect.width, clientX));
+  const clampedY = Math.max(0, Math.min(rect.height, clientY));
+
   return {
-    x: Math.max(0, Math.min(remoteCanvas.width, clientX * scaleX)),
-    y: Math.max(0, Math.min(remoteCanvas.height, clientY * scaleY)),
+    x: (clampedX / rect.width) * remoteCanvas.width,
+    y: (clampedY / rect.height) * remoteCanvas.height,
     viewportWidth: remoteCanvas.width,
     viewportHeight: remoteCanvas.height
   };
@@ -184,18 +188,28 @@ remoteCanvas.addEventListener('mousedown', (e) => {
   if (!isConnected) return;
   remoteCanvas.focus();
   const btnMap = { 0: 'LEFT', 1: 'MIDDLE', 2: 'RIGHT' };
+  const coords = getCanvasCoordinates(e);
   sendControlEvent({
     type: 'mousedown',
-    button: btnMap[e.button] || 'LEFT'
+    button: btnMap[e.button] || 'LEFT',
+    x: coords.x,
+    y: coords.y,
+    viewportWidth: coords.viewportWidth,
+    viewportHeight: coords.viewportHeight
   });
 });
 
 remoteCanvas.addEventListener('mouseup', (e) => {
   if (!isConnected) return;
   const btnMap = { 0: 'LEFT', 1: 'MIDDLE', 2: 'RIGHT' };
+  const coords = getCanvasCoordinates(e);
   sendControlEvent({
     type: 'mouseup',
-    button: btnMap[e.button] || 'LEFT'
+    button: btnMap[e.button] || 'LEFT',
+    x: coords.x,
+    y: coords.y,
+    viewportWidth: coords.viewportWidth,
+    viewportHeight: coords.viewportHeight
   });
 });
 

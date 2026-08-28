@@ -400,7 +400,7 @@ body {
   max-height: 100%;
   object-fit: contain;
   outline: none;
-  cursor: crosshair;
+  cursor: default;
 }
 
 /* Toast */
