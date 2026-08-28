@@ -1,0 +1,12 @@
+{
+  "name": "remote-assist-server",
+  "version": "1.0.0",
+  "description": "Signaling and Relay Server for Remote Assist Utility",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
