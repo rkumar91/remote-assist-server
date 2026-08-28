@@ -399,7 +399,7 @@ body {
 #remoteCanvas {
   display: block;
   outline: none;
-  cursor: crosshair;
+  cursor: default;
   background: #000;
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
   transition: width 0.15s ease, height 0.15s ease;
