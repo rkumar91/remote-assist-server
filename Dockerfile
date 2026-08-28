@@ -1,13 +1,13 @@
 FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /app/server
 
-COPY server/package*.json ./server/
-RUN cd server && npm ci --only=production
+COPY server/package*.json ./
+RUN npm install --only=production
 
-COPY server/ ./server/
+COPY server/ ./
 
 ENV PORT=9090
 EXPOSE 9090
 
-CMD ["node", "server/server.js"]
+CMD ["node", "server.js"]
