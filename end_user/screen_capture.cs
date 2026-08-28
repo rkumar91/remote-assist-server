@@ -18,6 +18,9 @@ namespace RemoteAssistCapture
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
 
+        [DllImport("shcore.dll", SetLastError = true)]
+        private static extern int SetProcessDpiAwareness(int awareness);
+
         [StructLayout(LayoutKind.Sequential)]
         struct POINT
         {
@@ -51,7 +54,16 @@ namespace RemoteAssistCapture
         static extern bool GetIconInfo(IntPtr hIcon, out ICONINFO piconinfo);
 
         [DllImport("user32.dll")]
-        static extern bool DrawIcon(IntPtr hdc, int x, int y, IntPtr hIcon);
+        static extern bool DrawIconEx(IntPtr hdc, int xLeft, int yTop, IntPtr hIcon, int cxWidth, int cyWidth, uint istepIfAniCur, IntPtr hbrFlickerFreeDraw, uint diFlags);
+
+        [DllImport("user32.dll")]
+        static extern IntPtr GetDC(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+        [DllImport("gdi32.dll")]
+        static extern bool BitBlt(IntPtr hdcDest, int nXDest, int nYDest, int nWidth, int nHeight, IntPtr hdcSrc, int nXSrc, int nYSrc, uint dwRop);
 
         [DllImport("gdi32.dll")]
         static extern bool DeleteObject(IntPtr hObject);
@@ -62,27 +74,35 @@ namespace RemoteAssistCapture
         const int SM_CXSCREEN = 0;
         const int SM_CYSCREEN = 1;
         const Int32 CURSOR_SHOWING = 0x00000001;
+        const uint DI_NORMAL = 0x0003;
+        const uint SRCCOPY = 0x00CC0020;
+        const uint CAPTUREBLT = 0x40000000;
 
         static void EnableDpiAwareness()
         {
             try
             {
-                if (Environment.OSVersion.Version.Major >= 10)
-                {
-                    if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
-                    {
-                        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
-                    }
-                }
-                else
-                {
-                    SetProcessDPIAware();
-                }
+                if (SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) return;
             }
-            catch
+            catch { }
+
+            try
             {
-                try { SetProcessDPIAware(); } catch { }
+                if (SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE)) return;
             }
+            catch { }
+
+            try
+            {
+                if (SetProcessDpiAwareness(2) == 0) return;
+            }
+            catch { }
+
+            try
+            {
+                SetProcessDPIAware();
+            }
+            catch { }
         }
 
         static ImageCodecInfo GetEncoder(ImageFormat format)
@@ -135,7 +155,18 @@ namespace RemoteAssistCapture
                     try
                     {
                         var start = DateTime.UtcNow;
-                        g.CopyFromScreen(0, 0, 0, 0, new Size(screenWidth, screenHeight), CopyPixelOperation.SourceCopy);
+                        
+                        IntPtr hDeskDC = GetDC(IntPtr.Zero);
+                        IntPtr hMemDC = g.GetHdc();
+                        try
+                        {
+                            BitBlt(hMemDC, 0, 0, screenWidth, screenHeight, hDeskDC, 0, 0, SRCCOPY | CAPTUREBLT);
+                        }
+                        finally
+                        {
+                            g.ReleaseHdc(hMemDC);
+                            ReleaseDC(IntPtr.Zero, hDeskDC);
+                        }
 
                         // Capture and overlay hardware mouse pointer with accurate hotspot
                         try
@@ -160,7 +191,7 @@ namespace RemoteAssistCapture
                                     IntPtr hdc = g.GetHdc();
                                     try
                                     {
-                                        DrawIcon(hdc, curX, curY, pci.hCursor);
+                                        DrawIconEx(hdc, curX, curY, pci.hCursor, 0, 0, 0, IntPtr.Zero, DI_NORMAL);
                                     }
                                     finally
                                     {
@@ -204,7 +235,7 @@ namespace RemoteAssistCapture
                     }
                     catch (Exception ex)
                     {
-                        Console.Error.WriteLine("Capture error: " + ex.Message);
+                        Console.Error.WriteLine("Capture error: " + ex.ToString());
                         break;
                     }
                 }

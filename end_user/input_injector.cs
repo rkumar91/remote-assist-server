@@ -26,10 +26,13 @@ namespace RemoteAssistInput
         static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         [DllImport("user32.dll")]
-        private static extern bool SetProcessDPIAware();
+        static extern bool SetProcessDPIAware();
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
+
+        [DllImport("shcore.dll", SetLastError = true)]
+        private static extern int SetProcessDpiAwareness(int awareness);
 
         private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
         private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = new IntPtr(-3);
@@ -54,22 +57,27 @@ namespace RemoteAssistInput
         {
             try
             {
-                if (Environment.OSVersion.Version.Major >= 10)
-                {
-                    if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
-                    {
-                        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
-                    }
-                }
-                else
-                {
-                    SetProcessDPIAware();
-                }
+                if (SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) return;
             }
-            catch
+            catch { }
+
+            try
             {
-                try { SetProcessDPIAware(); } catch { }
+                if (SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE)) return;
             }
+            catch { }
+
+            try
+            {
+                if (SetProcessDpiAwareness(2) == 0) return;
+            }
+            catch { }
+
+            try
+            {
+                SetProcessDPIAware();
+            }
+            catch { }
         }
 
         static void Main(string[] args)
@@ -112,6 +120,8 @@ namespace RemoteAssistInput
                             {
                                 int x = int.Parse(parts[1]);
                                 int y = int.Parse(parts[2]);
+                                x = Math.Max(0, Math.Min(screenWidth - 1, x));
+                                y = Math.Max(0, Math.Min(screenHeight - 1, y));
                                 SetCursorPos(x, y);
                             }
                             break;
@@ -123,6 +133,8 @@ namespace RemoteAssistInput
                                 {
                                     int x = int.Parse(parts[2]);
                                     int y = int.Parse(parts[3]);
+                                    x = Math.Max(0, Math.Min(screenWidth - 1, x));
+                                    y = Math.Max(0, Math.Min(screenHeight - 1, y));
                                     SetCursorPos(x, y);
                                 }
                                 string btn = parts[1].ToUpper();
@@ -139,6 +151,8 @@ namespace RemoteAssistInput
                                 {
                                     int x = int.Parse(parts[2]);
                                     int y = int.Parse(parts[3]);
+                                    x = Math.Max(0, Math.Min(screenWidth - 1, x));
+                                    y = Math.Max(0, Math.Min(screenHeight - 1, y));
                                     SetCursorPos(x, y);
                                 }
                                 string btn = parts[1].ToUpper();

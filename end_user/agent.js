@@ -243,8 +243,8 @@ function handleRemoteControlEvent(evt) {
     case 'mousemove': {
       const vWidth = evt.viewportWidth || screenResolution.width;
       const vHeight = evt.viewportHeight || screenResolution.height;
-      const targetX = Math.round((evt.x / vWidth) * screenResolution.width);
-      const targetY = Math.round((evt.y / vHeight) * screenResolution.height);
+      const targetX = Math.max(0, Math.min(screenResolution.width - 1, Math.round((evt.x / vWidth) * screenResolution.width)));
+      const targetY = Math.max(0, Math.min(screenResolution.height - 1, Math.round((evt.y / vHeight) * screenResolution.height)));
       inputProcess.stdin.write(`MOVE ${targetX} ${targetY}\n`);
       break;
     }
@@ -252,8 +252,8 @@ function handleRemoteControlEvent(evt) {
       if (evt.x !== undefined && (evt.viewportWidth || screenResolution.width)) {
         const vWidth = evt.viewportWidth || screenResolution.width;
         const vHeight = evt.viewportHeight || screenResolution.height;
-        const targetX = Math.round((evt.x / vWidth) * screenResolution.width);
-        const targetY = Math.round((evt.y / vHeight) * screenResolution.height);
+        const targetX = Math.max(0, Math.min(screenResolution.width - 1, Math.round((evt.x / vWidth) * screenResolution.width)));
+        const targetY = Math.max(0, Math.min(screenResolution.height - 1, Math.round((evt.y / vHeight) * screenResolution.height)));
         inputProcess.stdin.write(`MOUSEDOWN ${evt.button} ${targetX} ${targetY}\n`);
       } else {
         inputProcess.stdin.write(`MOUSEDOWN ${evt.button}\n`);
@@ -264,8 +264,8 @@ function handleRemoteControlEvent(evt) {
       if (evt.x !== undefined && (evt.viewportWidth || screenResolution.width)) {
         const vWidth = evt.viewportWidth || screenResolution.width;
         const vHeight = evt.viewportHeight || screenResolution.height;
-        const targetX = Math.round((evt.x / vWidth) * screenResolution.width);
-        const targetY = Math.round((evt.y / vHeight) * screenResolution.height);
+        const targetX = Math.max(0, Math.min(screenResolution.width - 1, Math.round((evt.x / vWidth) * screenResolution.width)));
+        const targetY = Math.max(0, Math.min(screenResolution.height - 1, Math.round((evt.y / vHeight) * screenResolution.height)));
         inputProcess.stdin.write(`MOUSEUP ${evt.button} ${targetX} ${targetY}\n`);
       } else {
         inputProcess.stdin.write(`MOUSEUP ${evt.button}\n`);
