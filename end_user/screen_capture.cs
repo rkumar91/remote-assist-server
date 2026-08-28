@@ -126,12 +126,9 @@ namespace RemoteAssistCapture
 
             using (Bitmap rawBmp = new Bitmap(screenWidth, screenHeight, PixelFormat.Format32bppArgb))
             using (Graphics g = Graphics.FromImage(rawBmp))
-            using (MemoryStream ms = new MemoryStream(65536))
+            using (MemoryStream ms = new MemoryStream(131072))
             {
-                // Signal resolution to parent process
-                byte[] header = System.Text.Encoding.UTF8.GetBytes(string.Format("META:{0}:{1}\n", screenWidth, screenHeight));
-                writer.Write(header);
-                writer.Flush();
+                byte[] lenPrefix = new byte[4];
 
                 while (true)
                 {
@@ -189,9 +186,9 @@ namespace RemoteAssistCapture
                         }
 
                         byte[] frameBytes = ms.ToArray();
-                        // Frame Protocol: 4 bytes length (Big Endian), then JPEG payload
                         int len = frameBytes.Length;
-                        byte[] lenPrefix = new byte[4];
+
+                        // Frame Protocol: 4 bytes length (Big Endian), then JPEG payload
                         lenPrefix[0] = (byte)((len >> 24) & 0xFF);
                         lenPrefix[1] = (byte)((len >> 16) & 0xFF);
                         lenPrefix[2] = (byte)((len >> 8) & 0xFF);
@@ -205,8 +202,9 @@ namespace RemoteAssistCapture
                         int sleep = delayMs - elapsed;
                         if (sleep > 0) Thread.Sleep(sleep);
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
+                        Console.Error.WriteLine("Capture error: " + ex.Message);
                         break;
                     }
                 }

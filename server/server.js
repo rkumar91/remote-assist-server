@@ -14,7 +14,7 @@ const server = http.createServer((req, res) => {
   }));
 });
 
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server, maxPayload: 50 * 1024 * 1024 });
 
 // Map: deviceId -> { ws, pin, isTarget: boolean, sessionPartnerId: string | null }
 const registeredClients = new Map();

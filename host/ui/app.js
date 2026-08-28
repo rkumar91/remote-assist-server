@@ -94,6 +94,7 @@ function connectBackend() {
         toolbarTargetId.textContent = `Target: ${data.targetId}`;
         connectScreen.style.display = 'none';
         remoteViewportContainer.style.display = 'flex';
+        resizeCanvasDisplay();
         remoteCanvas.focus();
         showToast('Connected to remote machine!');
       }
@@ -120,14 +121,53 @@ function connectBackend() {
   };
 }
 
+let scaleMode = 'fit'; // 'fit' | 'fill' | 'original'
+
+function resizeCanvasDisplay() {
+  if (!remoteCanvas.width || !remoteCanvas.height) return;
+
+  const containerW = window.innerWidth;
+  const containerH = window.innerHeight;
+
+  if (scaleMode === 'fit') {
+    const aspect = remoteCanvas.width / remoteCanvas.height;
+    let displayW = containerW;
+    let displayH = containerW / aspect;
+
+    if (displayH > containerH) {
+      displayH = containerH;
+      displayW = containerH * aspect;
+    }
+
+    remoteCanvas.style.width = `${Math.round(displayW)}px`;
+    remoteCanvas.style.height = `${Math.round(displayH)}px`;
+    remoteCanvas.classList.remove('mode-original');
+  } else if (scaleMode === 'fill') {
+    remoteCanvas.style.width = `${containerW}px`;
+    remoteCanvas.style.height = `${containerH}px`;
+    remoteCanvas.classList.remove('mode-original');
+  } else {
+    remoteCanvas.style.width = `${remoteCanvas.width}px`;
+    remoteCanvas.style.height = `${remoteCanvas.height}px`;
+    remoteCanvas.classList.add('mode-original');
+  }
+}
+
+window.addEventListener('resize', resizeCanvasDisplay);
+document.addEventListener('fullscreenchange', resizeCanvasDisplay);
+
 function handleIncomingFrame(blob) {
   const url = URL.createObjectURL(blob);
   const img = new Image();
   img.onload = () => {
-    if (remoteCanvas.width !== img.naturalWidth || remoteCanvas.height !== img.naturalHeight) {
+    const resChanged = (remoteCanvas.width !== img.naturalWidth || remoteCanvas.height !== img.naturalHeight);
+    if (resChanged) {
       remoteCanvas.width = img.naturalWidth;
       remoteCanvas.height = img.naturalHeight;
+      resizeCanvasDisplay();
     }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, 0, 0);
     URL.revokeObjectURL(url);
 
@@ -296,6 +336,28 @@ btnUpdateServer.addEventListener('click', () => {
     showToast('Updated server URL!');
   }
 });
+
+const btnScaleMode = document.getElementById('btnScaleMode');
+const scaleModeText = document.getElementById('scaleModeText');
+
+const SCALE_MODES = [
+  { id: 'fit', label: 'Fit Screen', toast: 'Display: Fit to Window (Proportional)' },
+  { id: 'fill', label: 'Fill Window', toast: 'Display: Stretch to Fill (Edge-to-Edge)' },
+  { id: 'original', label: '1:1 Original', toast: 'Display: 1:1 Native Resolution' }
+];
+
+let scaleModeIndex = 0;
+
+if (btnScaleMode) {
+  btnScaleMode.addEventListener('click', () => {
+    scaleModeIndex = (scaleModeIndex + 1) % SCALE_MODES.length;
+    const current = SCALE_MODES[scaleModeIndex];
+    scaleMode = current.id;
+    if (scaleModeText) scaleModeText.textContent = current.label;
+    resizeCanvasDisplay();
+    showToast(current.toast);
+  });
+}
 
 btnFullscreen.addEventListener('click', () => {
   if (!document.fullscreenElement) {

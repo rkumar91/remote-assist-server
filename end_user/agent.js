@@ -60,12 +60,12 @@ function startInputSimulator() {
 
   const exePath = path.join(__dirname, 'RemoteInput.exe');
   if (!fs.existsSync(exePath)) {
-    console.error('RemoteInput.exe not found! Please build it first.');
+    console.error('RemoteInput.exe not found! Please compile it first.');
     return;
   }
 
   try {
-    inputProcess = spawn('RemoteInput.exe', [], {
+    inputProcess = spawn(exePath, [], {
       cwd: __dirname,
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe']
@@ -97,18 +97,18 @@ function startInputSimulator() {
 }
 
 // --- Spawn Screen Capturer ---
-function startScreenCapture(fps = 25, quality = 65) {
+function startScreenCapture(fps = 20, quality = 55) {
   if (captureProcess) return;
 
   const exePath = path.join(__dirname, 'RemoteCapture.exe');
   if (!fs.existsSync(exePath)) {
-    console.error('RemoteCapture.exe not found! Please build it first.');
+    console.error('RemoteCapture.exe not found! Please compile it first.');
     return;
   }
 
   try {
     // Quality, FPS, Width, Height
-    captureProcess = spawn('RemoteCapture.exe', [String(quality), String(fps)], {
+    captureProcess = spawn(exePath, [String(quality), String(fps)], {
       cwd: __dirname,
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe']
@@ -122,26 +122,7 @@ function startScreenCapture(fps = 25, quality = 65) {
 
       while (true) {
         if (expectedLength === null) {
-          // Need at least 4 bytes for frame length prefix
           if (buffer.length < 4) break;
-
-          // Check for META header first
-          if (buffer.toString('utf8', 0, 5) === 'META:') {
-            const newlineIdx = buffer.indexOf(10); // '\n'
-            if (newlineIdx !== -1) {
-              const metaStr = buffer.toString('utf8', 0, newlineIdx);
-              buffer = buffer.slice(newlineIdx + 1);
-              const metaMatch = metaStr.match(/META:(\d+):(\d+)/);
-              if (metaMatch) {
-                screenResolution.width = parseInt(metaMatch[1], 10);
-                screenResolution.height = parseInt(metaMatch[2], 10);
-                console.log(`[Capture Resolution Synced] ${screenResolution.width}x${screenResolution.height}`);
-                broadcastUiState();
-              }
-              continue;
-            }
-          }
-
           expectedLength = buffer.readUInt32BE(0);
           buffer = buffer.slice(4);
         }
@@ -159,6 +140,10 @@ function startScreenCapture(fps = 25, quality = 65) {
           break;
         }
       }
+    });
+
+    captureProcess.stderr.on('data', (data) => {
+      console.error('[Capture STDERR]', data.toString().trim());
     });
 
     captureProcess.on('error', (err) => {
@@ -211,12 +196,11 @@ function connectToSignalingServer() {
           console.log(`[Host Connected] Session ID: ${msg.sessionId} from Host: ${msg.partnerId}`);
           currentSession = { partnerId: msg.partnerId, sessionId: msg.sessionId, startedAt: Date.now() };
           
-          // Auto-hide the terminal console window so nothing blocks the screen
-          if (inputProcess && inputProcess.stdin) {
+          if (config.runInBackground && inputProcess && inputProcess.stdin) {
             try { inputProcess.stdin.write('HIDE_CONSOLE\n'); } catch (e) {}
           }
 
-          startScreenCapture(25, 65);
+          startScreenCapture(20, 55);
           broadcastUiState();
         } 
         else if (msg.type === 'session_ended') {

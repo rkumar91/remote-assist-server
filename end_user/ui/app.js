@@ -54,7 +54,7 @@ function connectBackend() {
           activeSessionBanner.style.display = 'flex';
           incomingModal.style.display = 'none';
 
-          if (!window._hasAutoClosed) {
+          if (data.runInBackground && !window._hasAutoClosed) {
             window._hasAutoClosed = true;
             showToast('Host connected! Running in background...');
             setTimeout(() => {
@@ -64,8 +64,10 @@ function connectBackend() {
         } else if (data.serverStatus && data.serverStatus.includes('Online')) {
           statusPill.classList.add('online');
           activeSessionBanner.style.display = 'none';
+          window._hasAutoClosed = false;
         } else {
           activeSessionBanner.style.display = 'none';
+          window._hasAutoClosed = false;
         }
 
         if (data.screenResolution) {
