@@ -228,7 +228,9 @@ wss.on('close', () => {
   clearInterval(interval);
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[RemoteAssist Server] Running on http://localhost:${PORT}`);
+const listenPort = parseInt(PORT, 10) || 8080;
+
+server.listen(listenPort, '0.0.0.0', () => {
+  console.log(`[RemoteAssist Server] Listening on 0.0.0.0:${listenPort}`);
   console.log(`[RemoteAssist Server] Ready for incoming End-User & Host connections.`);
 });
