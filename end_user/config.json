@@ -1,5 +1,5 @@
 {
-  "serverUrl": "wss://remote-assist-server-et7x.onrender.com",
+  "serverUrl": "wss://priyex-remote-assist.up.railway.app",
   "deviceId": "706 461 803",
   "pin": "560194",
   "runInBackground": true,
