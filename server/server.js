@@ -3,46 +3,59 @@ const WebSocket = require('ws');
 
 const PORT = process.env.PORT || 9090;
 
+// Registered Clients: deviceId -> { ws, pin, role, sessionPartnerId, connectedAt, lastSeen }
+const registeredClients = new Map();
+// Active Sessions: sessionId -> { targetId, hostId, startedAt }
+const activeSessions = new Map();
+
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({
     status: 'online',
-    service: 'RemoteAssist Signaling Server',
+    service: 'RemoteAssist Pro Cloud Relay',
     registeredClients: registeredClients.size,
     activeSessions: activeSessions.size,
+    uptimeSeconds: Math.floor(process.uptime()),
     timestamp: new Date().toISOString()
   }));
 });
 
-const wss = new WebSocket.Server({ server, maxPayload: 50 * 1024 * 1024 });
+const wss = new WebSocket.Server({
+  server,
+  maxPayload: 50 * 1024 * 1024,
+  clientTracking: true
+});
 
-// Map: deviceId -> { ws, pin, isTarget: boolean, sessionPartnerId: string | null }
-const registeredClients = new Map();
-// Map: sessionId -> { targetId, hostId }
-const activeSessions = new Map();
-
-console.log('==================================================');
-console.log(`[RemoteAssist Server] Starting on port ${PORT}...`);
-console.log('==================================================');
+console.log('====================================================');
+console.log(`[RemoteAssist Pro Server] Starting on port ${PORT}...`);
+console.log('====================================================');
 
 wss.on('connection', (ws, req) => {
   const remoteIp = req.socket.remoteAddress;
   let currentDeviceId = null;
-  let clientRole = null; // 'target' (end user) | 'host'
+  let clientRole = null;
 
   ws.isAlive = true;
-  ws.on('pong', () => { ws.isAlive = true; });
+  ws.lastPing = Date.now();
+
+  ws.on('pong', () => {
+    ws.isAlive = true;
+    ws.lastPing = Date.now();
+  });
 
   ws.on('message', (message, isBinary) => {
     try {
-      // Direct high-speed binary frame forwarding (screen stream)
+      // 1. Direct high-speed binary frame forwarding (Screen Stream)
       if (isBinary) {
         if (currentDeviceId) {
           const client = registeredClients.get(currentDeviceId);
           if (client && client.sessionPartnerId) {
             const partner = registeredClients.get(client.sessionPartnerId);
             if (partner && partner.ws.readyState === WebSocket.OPEN) {
-              partner.ws.send(message, { binary: true });
+              // Flow-control: Skip frame if partner socket buffer is congested (> 256KB)
+              if (partner.ws.bufferedAmount < 262144) {
+                partner.ws.send(message, { binary: true });
+              }
             }
           }
         }
@@ -51,31 +64,45 @@ wss.on('connection', (ws, req) => {
 
       const data = JSON.parse(message.toString());
 
+      // 2. Handle Keep-Alive Ping from Client / Host
+      if (data.type === 'ping') {
+        ws.isAlive = true;
+        ws.lastPing = Date.now();
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'pong', time: Date.now() }));
+        }
+        return;
+      }
+
       switch (data.type) {
-        // --- 1. End User Registers its ID and PIN ---
+        // --- End User Registers ID & PIN ---
         case 'register_target': {
           const { id, pin } = data;
-          if (!id || !pin) {
-            return ws.send(JSON.stringify({ type: 'error', message: 'Missing ID or PIN' }));
-          }
+          if (!id || !pin) return;
 
           currentDeviceId = id;
           clientRole = 'target';
+
+          const existing = registeredClients.get(id);
+          const activePartner = existing ? existing.sessionPartnerId : null;
 
           registeredClients.set(id, {
             ws,
             pin: String(pin).trim(),
             role: 'target',
-            sessionPartnerId: null,
-            connectedAt: Date.now()
+            sessionPartnerId: activePartner,
+            connectedAt: Date.now(),
+            lastSeen: Date.now()
           });
 
           console.log(`[Target Registered] ID: ${id} | IP: ${remoteIp}`);
-          ws.send(JSON.stringify({ type: 'register_success', id }));
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'register_success', id }));
+          }
           break;
         }
 
-        // --- 2. Host Requests Connection to Target with ID + PIN ---
+        // --- Host Connects with ID & PIN ---
         case 'connect_request': {
           const { targetId, pin, hostId } = data;
           currentDeviceId = hostId || `host_${Date.now()}`;
@@ -85,7 +112,8 @@ wss.on('connection', (ws, req) => {
             ws,
             role: 'host',
             sessionPartnerId: null,
-            connectedAt: Date.now()
+            connectedAt: Date.now(),
+            lastSeen: Date.now()
           });
 
           const target = registeredClients.get(targetId);
@@ -97,7 +125,7 @@ wss.on('connection', (ws, req) => {
             }));
           }
 
-          if (target.sessionPartnerId) {
+          if (target.sessionPartnerId && target.sessionPartnerId !== currentDeviceId) {
             return ws.send(JSON.stringify({
               type: 'connect_error',
               reason: 'Target machine is already in an active remote session.'
@@ -111,47 +139,37 @@ wss.on('connection', (ws, req) => {
             }));
           }
 
-          // Pair them
+          // Pair target and host
           target.sessionPartnerId = currentDeviceId;
           const hostObj = registeredClients.get(currentDeviceId);
           if (hostObj) hostObj.sessionPartnerId = targetId;
 
           const sessionId = `sess_${targetId}_${currentDeviceId}`;
-          activeSessions.set(sessionId, { targetId, hostId: currentDeviceId });
+          activeSessions.set(sessionId, { targetId, hostId: currentDeviceId, startedAt: Date.now() });
 
-          console.log(`[Session Established] Host (${currentDeviceId}) connected to Target (${targetId})`);
+          console.log(`[Session Established] Host (${currentDeviceId}) <-> Target (${targetId})`);
 
-          // Notify Target of incoming connection
-          target.ws.send(JSON.stringify({
-            type: 'session_started',
-            partnerId: currentDeviceId,
-            sessionId
-          }));
-
-          // Notify Host that authentication succeeded
-          ws.send(JSON.stringify({
-            type: 'connect_success',
-            targetId,
-            sessionId
-          }));
-          break;
-        }
-
-        // --- 3. WebRTC / Signaling Forwarding (Offer, Answer, ICE Candidates) ---
-        case 'signal': {
-          const { targetId, payload } = data;
-          const target = registeredClients.get(targetId);
-          if (target && target.ws.readyState === WebSocket.OPEN) {
+          // Notify Target
+          if (target.ws.readyState === WebSocket.OPEN) {
             target.ws.send(JSON.stringify({
-              type: 'signal',
-              from: currentDeviceId,
-              payload
+              type: 'session_started',
+              partnerId: currentDeviceId,
+              sessionId
+            }));
+          }
+
+          // Notify Host
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'connect_success',
+              targetId,
+              sessionId
             }));
           }
           break;
         }
 
-        // --- 4. Remote Input & Control Events (Mouse, Key, Screen meta) ---
+        // --- Control Events (Mouse, Keyboard) ---
         case 'control_event': {
           if (currentDeviceId) {
             const client = registeredClients.get(currentDeviceId);
@@ -168,30 +186,30 @@ wss.on('connection', (ws, req) => {
           break;
         }
 
-        // --- 5. Terminate / Disconnect Session ---
+        // --- Disconnect Session ---
         case 'disconnect_session': {
           terminateSessionFor(currentDeviceId, 'Session ended by user.');
           break;
         }
 
         default:
-          console.warn(`[Unknown Event] Type: ${data.type}`);
+          break;
       }
     } catch (err) {
-      console.error('[Message Handling Error]', err.message);
+      console.error('[Error processing message]', err.message);
     }
   });
 
   ws.on('close', () => {
     if (currentDeviceId) {
-      console.log(`[Disconnected] ${clientRole} ID: ${currentDeviceId}`);
-      terminateSessionFor(currentDeviceId, 'Remote partner disconnected.');
+      console.log(`[Socket Closed] ${clientRole || 'Client'} ID: ${currentDeviceId}`);
+      terminateSessionFor(currentDeviceId, 'Partner disconnected.');
       registeredClients.delete(currentDeviceId);
     }
   });
 
   ws.on('error', (err) => {
-    console.error(`[WS Error] Device: ${currentDeviceId}`, err.message);
+    console.error(`[Socket Error] ${currentDeviceId}:`, err.message);
   });
 });
 
@@ -215,20 +233,21 @@ function terminateSessionFor(deviceId, reason) {
   client.sessionPartnerId = null;
 }
 
-// Keep-alive heartbeat every 30s
+// Server-side keepalive interval (every 15s)
 const interval = setInterval(() => {
   wss.clients.forEach((ws) => {
-    if (ws.isAlive === false) return ws.terminate();
+    if (ws.isAlive === false) {
+      return ws.terminate();
+    }
     ws.isAlive = false;
-    ws.ping();
+    try { ws.ping(); } catch (e) {}
   });
-}, 30000);
+}, 15000);
 
 wss.on('close', () => {
   clearInterval(interval);
 });
 
 server.listen(PORT, () => {
-  console.log(`[RemoteAssist Server] Running on http://localhost:${PORT}`);
-  console.log(`[RemoteAssist Server] Ready for incoming End-User & Host connections.`);
+  console.log(`[RemoteAssist Server] Active on port ${PORT}`);
 });

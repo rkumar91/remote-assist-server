@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Remote Assist - Share This Computer</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="background-decorations">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
+        <div>
+          <h1 class="logo-title">Remote<span>Assist</span></h1>
+          <p class="logo-subtitle">End-User Client</p>
+        </div>
+      </div>
+      <div class="status-pill" id="statusPill">
+        <span class="status-dot"></span>
+        <span id="statusText">Connecting...</span>
+      </div>
+    </header>
+
+    <!-- Incoming Connection Request Modal -->
+    <div class="incoming-modal-backdrop" id="incomingModal" style="display: none;">
+      <div class="incoming-modal">
+        <div class="modal-icon pulse-glow">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"></path>
+          </svg>
+        </div>
+        <h3>Incoming Connection Request</h3>
+        <p id="incomingModalText">A remote host (<span id="incomingHostId" class="mono-highlight">Host</span>) is connecting with your PIN.</p>
+        <div class="modal-actions">
+          <button class="btn-deny" id="btnDenyConnection">Reject</button>
+          <button class="btn-allow" id="btnAllowConnection">Allow Full Control</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Remote Session Alert Banner -->
+    <div class="active-session-banner" id="activeSessionBanner" style="display: none;">
+      <div class="banner-content">
+        <div class="pulse-icon">
+          <span class="pulse-ring"></span>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </div>
+        <div>
+          <h4>Remote Controller Active</h4>
+          <p>Host is currently controlling this screen.</p>
+        </div>
+      </div>
+      <button class="btn-disconnect-session" id="btnDisconnectSession">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+          <line x1="12" y1="2" x2="12" y2="12"></line>
+        </svg>
+        Disconnect
+      </button>
+    </div>
+
+    <!-- Main Card -->
+    <main class="main-card">
+      <div class="card-hero">
+        <h2>Allow Remote Access</h2>
+        <p>Share your ID and One-Time PIN with the host to allow full remote control of this machine.</p>
+      </div>
+
+      <!-- Credentials Grid -->
+      <div class="credentials-grid">
+        <!-- Device ID Block -->
+        <div class="cred-box">
+          <div class="cred-label">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+            <span>YOUR ID</span>
+          </div>
+          <div class="cred-value-row">
+            <span class="cred-value mono-text" id="deviceIdText">--- --- ---</span>
+            <button class="icon-btn" id="btnCopyId" title="Copy ID">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Session PIN Block -->
+        <div class="cred-box">
+          <div class="cred-label">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>ONE-TIME PIN</span>
+          </div>
+          <div class="cred-value-row">
+            <span class="cred-value mono-text highlight" id="pinText">------</span>
+            <div class="btn-group">
+              <button class="icon-btn" id="btnRefreshPin" title="Generate New PIN">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 4v6h-6"></path>
+                  <path d="M1 20v-6h6"></path>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+              </button>
+              <button class="icon-btn" id="btnCopyPin" title="Copy PIN">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Copy Both -->
+      <button class="btn-copy-all" id="btnCopyAll">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        Copy ID & Password to Clipboard
+      </button>
+
+      <!-- Preferences & Background Mode -->
+      <div class="settings-section">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-title">Run in Hidden Mode</span>
+            <span class="toggle-desc">Hides the black console terminal window from your screen.</span>
+          </div>
+          <button class="btn-hide-console" id="btnHideConsole" title="Hide Console Window">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+            <span id="hideConsoleBtnText">Hide Terminal</span>
+          </button>
+        </div>
+
+        <div class="task-manager-hint">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>When hidden, you can stop anytime via <strong>Exit Application</strong> below or terminate <strong>Node.js / RemoteAssist</strong> in Task Manager (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Esc</kbd>).</span>
+        </div>
+
+        <div class="toggle-row" style="margin-top: 14px;">
+          <div class="toggle-info">
+            <span class="toggle-title">Unattended Background Mode</span>
+            <span class="toggle-desc">Keep running when browser tab is closed, allowing host to connect anytime.</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="bgModeToggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="server-config-row">
+          <details>
+            <summary>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              Signaling Server Configuration (Public Internet / LAN)
+            </summary>
+            <div class="server-input-group">
+              <input type="text" id="serverUrlInput" placeholder="ws://your-server-ip:9090" spellcheck="false">
+              <button class="btn-save-server" id="btnSaveServer">Save</button>
+            </div>
+          </details>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-info">
+        <span id="resolutionInfo">Screen: Detecting...</span>
+      </div>
+      <button class="btn-exit" id="btnExit">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        Exit Application
+      </button>
+    </footer>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">Copied to clipboard!</div>
+
+  <script src="app.js"></script>
+</body>
+</html>

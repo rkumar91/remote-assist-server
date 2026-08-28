@@ -1,13 +1,12 @@
 @echo off
 title Remote Assist - End User Client
 color 0A
-cd /d "%~dp0"
+cd /d "%~dp0end_user"
 
 echo =========================================================
 echo       REMOTE ASSIST - END USER SHARING UTILITY
 echo =========================================================
 echo.
-
 
 where node >nul 2>nul
 if %ERRORLEVEL% neq 0 (
@@ -36,5 +35,3 @@ if not exist node_modules (
 echo Starting End-User Agent...
 node agent.js
 pause
-
-

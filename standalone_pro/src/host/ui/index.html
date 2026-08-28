@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Remote Assist - Host Controller</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- VIEW 1: Connect Screen -->
+  <div class="connect-screen" id="connectScreen">
+    <div class="background-decorations">
+      <div class="glow-orb orb-1"></div>
+      <div class="glow-orb orb-2"></div>
+    </div>
+
+    <div class="connect-card">
+      <div class="card-header">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </div>
+        <div>
+          <h1 class="card-title">Remote<span>Assist</span></h1>
+          <p class="card-subtitle">Host Remote Controller</p>
+        </div>
+        <div class="server-status-pill" id="serverStatusPill">
+          <span class="status-dot"></span>
+          <span id="serverStatusText">Connecting...</span>
+        </div>
+      </div>
+
+      <form id="connectForm" class="connect-form">
+        <!-- Target ID Input -->
+        <div class="input-group">
+          <label for="targetIdInput">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+            TARGET COMPUTER ID
+          </label>
+          <input 
+            type="text" 
+            id="targetIdInput" 
+            class="mono-input" 
+            placeholder="e.g. 983 204 182" 
+            required 
+            autocomplete="off" 
+            spellcheck="false"
+          >
+        </div>
+
+        <!-- Target PIN Input -->
+        <div class="input-group">
+          <label for="targetPinInput">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            SECURITY PIN / PASSWORD
+          </label>
+          <input 
+            type="password" 
+            id="targetPinInput" 
+            class="mono-input" 
+            placeholder="6-digit PIN" 
+            required 
+            autocomplete="off"
+          >
+        </div>
+
+        <!-- Connect Action Button -->
+        <button type="submit" class="btn-connect" id="btnConnect">
+          <span class="btn-text">Connect & Take Control</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </form>
+
+      <!-- Advanced Server Settings -->
+      <div class="settings-drawer">
+        <details>
+          <summary>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            Signaling Server URL
+          </summary>
+          <div class="server-row">
+            <input type="text" id="hostServerUrl" placeholder="ws://localhost:9090">
+            <button type="button" id="btnUpdateServer" class="btn-sm">Update</button>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW 2: Remote Desktop Viewer (Active Session) -->
+  <div class="remote-viewport-container" id="remoteViewportContainer" style="display: none;">
+    <!-- Floating Toolbar -->
+    <div class="floating-toolbar" id="floatingToolbar">
+      <div class="toolbar-drag-handle">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <circle cx="9" cy="6" r="1.5"></circle><circle cx="15" cy="6" r="1.5"></circle>
+          <circle cx="9" cy="12" r="1.5"></circle><circle cx="15" cy="12" r="1.5"></circle>
+          <circle cx="9" cy="18" r="1.5"></circle><circle cx="15" cy="18" r="1.5"></circle>
+        </svg>
+      </div>
+
+      <div class="session-badge">
+        <span class="pulse-dot"></span>
+        <span id="toolbarTargetId">Remote PC</span>
+      </div>
+
+      <div class="stats-badge">
+        <span id="fpsCounter">0 FPS</span>
+      </div>
+
+      <div class="toolbar-actions">
+        <button class="tool-btn" id="btnScaleMode" title="Toggle Fit to Screen / Original 1:1">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
+          </svg>
+          <span id="scaleModeText">Fit Screen</span>
+        </button>
+        <button class="tool-btn" id="btnSendWinKey" title="Send Windows Key">Win</button>
+        <button class="tool-btn" id="btnFullscreen" title="Toggle Fullscreen">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+        </button>
+        <button class="tool-btn btn-danger" id="btnDisconnectRemote" title="End Session">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+            <line x1="12" y1="2" x2="12" y2="12"></line>
+          </svg>
+          Disconnect
+        </button>
+      </div>
+    </div>
+
+    <!-- Screen Canvas -->
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <canvas id="remoteCanvas" tabindex="0"></canvas>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

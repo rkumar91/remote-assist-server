@@ -1,0 +1,16 @@
+﻿{
+  "name": "remote-assist-pro",
+  "version": "2.0.0",
+  "description": "Professional Standalone Remote Desktop & Support Software",
+  "main": "src/client/agent_standalone.js",
+  "scripts": {
+    "build": "node build/build.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "javascript-obfuscator": "^4.1.1",
+    "@yao-pkg/pkg": "^5.14.1"
+  }
+}
