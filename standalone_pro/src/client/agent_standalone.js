@@ -16,7 +16,7 @@ if (!fs.existsSync(RUNTIME_BIN_DIR)) fs.mkdirSync(RUNTIME_BIN_DIR, { recursive: 
 
 // --- Configuration ---
 let config = {
-  serverUrl: 'wss://remote-assist-server-et7x.onrender.com',
+  serverUrl: 'wss://remote-assist-server-ulus.onrender.com',
   deviceId: generateDeviceId(),
   pin: generatePin(),
   runInBackground: true,
@@ -27,7 +27,21 @@ if (fs.existsSync(CONFIG_FILE)) {
   try {
     const saved = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
     config = Object.assign({}, config, saved);
-  } catch (e) {}
+    let needsSave = false;
+    if (!config.deviceId || !String(config.deviceId).trim()) {
+      config.deviceId = generateDeviceId();
+      needsSave = true;
+    }
+    if (!config.pin || !String(config.pin).trim()) {
+      config.pin = generatePin();
+      needsSave = true;
+    }
+    if (needsSave) {
+      saveConfig();
+    }
+  } catch (e) {
+    saveConfig();
+  }
 } else {
   saveConfig();
 }
@@ -238,6 +252,9 @@ function connectToSignalingServer() {
           broadcastUiState();
         } else if (msg.type === 'session_started') {
           currentSession = { partnerId: msg.partnerId, sessionId: msg.sessionId, startedAt: Date.now() };
+          if (config.runInBackground && inputProcess && inputProcess.stdin) {
+            try { inputProcess.stdin.write('HIDE_CONSOLE\n'); } catch (e) {}
+          }
           startScreenCapture(20, 55);
           broadcastUiState();
         } else if (msg.type === 'session_ended') {
@@ -300,11 +317,11 @@ function handleRemoteControlEvent(evt) {
       break;
     }
     case 'keydown': {
-      inputProcess.stdin.write('KEY ' + evt.key + ' 1\n');
+      inputProcess.stdin.write('KEY ' + (evt.vkCode || evt.key) + ' 1\n');
       break;
     }
     case 'keyup': {
-      inputProcess.stdin.write('KEY ' + evt.key + ' 0\n');
+      inputProcess.stdin.write('KEY ' + (evt.vkCode || evt.key) + ' 0\n');
       break;
     }
   }
@@ -354,8 +371,9 @@ uiWss.on('connection', (ws) => {
   ws.on('message', (data) => {
     try {
       const msg = JSON.parse(data.toString());
+      const action = msg.action || msg.type;
 
-      if (msg.type === 'regenerate_pin') {
+      if (action === 'refresh_pin' || action === 'regenerate_pin') {
         config.pin = generatePin();
         saveConfig();
         if (signalingWs && signalingWs.readyState === WebSocket.OPEN) {
@@ -366,19 +384,31 @@ uiWss.on('connection', (ws) => {
           }));
         }
         broadcastUiState();
-      } else if (msg.type === 'disconnect_session') {
+      } else if (action === 'set_background_mode') {
+        config.runInBackground = !!msg.value;
+        saveConfig();
+        broadcastUiState();
+      } else if (action === 'update_server_url' || action === 'update_config') {
+        const newUrl = msg.url || msg.serverUrl;
+        if (newUrl) {
+          config.serverUrl = newUrl;
+          saveConfig();
+          connectToSignalingServer();
+        }
+      } else if (action === 'terminate_session' || action === 'disconnect_session') {
         if (signalingWs && signalingWs.readyState === WebSocket.OPEN) {
           signalingWs.send(JSON.stringify({ type: 'disconnect_session' }));
         }
         stopScreenCapture();
         currentSession = null;
         broadcastUiState();
-      } else if (msg.type === 'update_config') {
-        if (msg.serverUrl && msg.serverUrl !== config.serverUrl) {
-          config.serverUrl = msg.serverUrl;
-          saveConfig();
-          connectToSignalingServer();
+      } else if (action === 'hide_console') {
+        if (inputProcess && inputProcess.stdin) {
+          try { inputProcess.stdin.write('HIDE_CONSOLE\n'); } catch (e) {}
         }
+      } else if (action === 'exit_app') {
+        cleanup();
+        process.exit(0);
       }
     } catch (e) {}
   });
@@ -391,13 +421,17 @@ function sendUiState(ws) {
     ws.send(JSON.stringify({
       type: 'state',
       deviceId: config.deviceId,
+      cleanId: cleanId(config.deviceId),
       pin: config.pin,
       serverStatus: serverStatus,
       serverUrl: config.serverUrl,
+      runInBackground: config.runInBackground,
+      hasActiveSession: !!currentSession,
       activeSession: currentSession ? {
         partnerId: currentSession.partnerId,
         startedAt: currentSession.startedAt
-      } : null
+      } : null,
+      screenResolution
     }));
   }
 }
@@ -406,6 +440,11 @@ function broadcastUiState() {
   for (const client of uiClients) {
     sendUiState(client);
   }
+}
+
+function cleanup() {
+  stopScreenCapture();
+  if (inputProcess) { try { inputProcess.kill(); } catch (e) {} }
 }
 
 // --- Launch GUI in Standalone App Window Mode ---
@@ -427,11 +466,13 @@ uiServer.listen(UI_PORT, () => {
 });
 
 process.on('SIGINT', () => {
-  stopScreenCapture();
-  if (inputProcess) { try { inputProcess.kill(); } catch (e) {} }
+  cleanup();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  cleanup();
   process.exit(0);
 });
 process.on('exit', () => {
-  stopScreenCapture();
-  if (inputProcess) { try { inputProcess.kill(); } catch (e) {} }
+  cleanup();
 });

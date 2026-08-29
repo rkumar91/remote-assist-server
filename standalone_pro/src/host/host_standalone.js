@@ -12,7 +12,7 @@ const CONFIG_FILE = path.join(APP_DIR, 'host_config.json');
 if (!fs.existsSync(APP_DIR)) fs.mkdirSync(APP_DIR, { recursive: true });
 
 let config = {
-  serverUrl: 'wss://remote-assist-server-et7x.onrender.com',
+  serverUrl: 'wss://remote-assist-server-ulus.onrender.com',
   lastTargetId: ''
 };
 
@@ -148,50 +148,49 @@ uiWss.on('connection', (ws) => {
   uiClients.add(ws);
 
   ws.send(JSON.stringify({
-    type: 'init',
+    type: 'init_state',
     serverUrl: config.serverUrl,
     lastTargetId: config.lastTargetId,
-    connected: signalingWs && signalingWs.readyState === WebSocket.OPEN
+    isConnected: !!currentSession,
+    hostId,
+    serverStatus: (signalingWs && signalingWs.readyState === WebSocket.OPEN) ? 'Connected' : 'Connecting...'
   }));
 
   ws.on('message', (data) => {
     try {
       const msg = JSON.parse(data.toString());
+      const action = msg.action || msg.type;
 
-      if (msg.type === 'connect_target') {
-        const targetId = String(msg.targetId).replace(/\s+/g, '');
-        const pin = String(msg.pin).trim();
-
+      if (action === 'connect' || action === 'connect_target') {
+        const cleanTargetId = String(msg.targetId).replace(/\s+/g, '');
         config.lastTargetId = msg.targetId;
         saveConfig();
 
-        if (signalingWs && signalingWs.readyState === WebSocket.OPEN) {
-          signalingWs.send(JSON.stringify({
-            type: 'connect_request',
-            targetId: targetId,
-            pin: pin,
-            hostId: hostId
-          }));
+        if (!signalingWs || signalingWs.readyState !== WebSocket.OPEN) {
+          connectToSignaling(config.serverUrl);
+          setTimeout(() => sendConnectReq(cleanTargetId, msg.pin), 800);
         } else {
-          ws.send(JSON.stringify({ type: 'session_error', reason: 'Signaling server is not connected.' }));
+          sendConnectReq(cleanTargetId, msg.pin);
         }
-      } else if (msg.type === 'disconnect_session') {
-        if (signalingWs && signalingWs.readyState === WebSocket.OPEN) {
-          signalingWs.send(JSON.stringify({ type: 'disconnect_session' }));
-        }
-        currentSession = null;
-        broadcastToUi({ type: 'session_ended', reason: 'Disconnected by host.' });
-      } else if (msg.type === 'control_event') {
+      } else if (action === 'control_event') {
         if (signalingWs && signalingWs.readyState === WebSocket.OPEN && currentSession) {
           signalingWs.send(JSON.stringify({
             type: 'control_event',
             event: msg.event
           }));
         }
-      } else if (msg.type === 'update_server') {
-        config.serverUrl = msg.serverUrl;
+      } else if (action === 'disconnect' || action === 'disconnect_session') {
+        if (signalingWs && signalingWs.readyState === WebSocket.OPEN) {
+          signalingWs.send(JSON.stringify({ type: 'disconnect_session' }));
+        }
+        currentSession = null;
+        broadcastToUi({ type: 'session_ended', reason: 'Disconnected by host.' });
+      } else if (action === 'update_server' || action === 'update_server_url') {
+        config.serverUrl = msg.url || msg.serverUrl;
         saveConfig();
         connectToSignaling(config.serverUrl);
+      } else if (action === 'exit_app') {
+        process.exit(0);
       }
     } catch (e) {}
   });
@@ -200,6 +199,17 @@ uiWss.on('connection', (ws) => {
     uiClients.delete(ws);
   });
 });
+
+function sendConnectReq(targetId, pin) {
+  if (signalingWs && signalingWs.readyState === WebSocket.OPEN) {
+    signalingWs.send(JSON.stringify({
+      type: 'connect_request',
+      hostId,
+      targetId,
+      pin: String(pin).trim()
+    }));
+  }
+}
 
 function broadcastToUi(msg) {
   const json = JSON.stringify(msg);
