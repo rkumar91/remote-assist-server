@@ -20,8 +20,21 @@ if (fs.existsSync(CONFIG_FILE)) {
   try {
     const saved = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
     config = { ...config, ...saved };
+    let needsSave = false;
+    if (!config.deviceId || !String(config.deviceId).trim()) {
+      config.deviceId = generateDeviceId();
+      needsSave = true;
+    }
+    if (!config.pin || !String(config.pin).trim()) {
+      config.pin = generatePin();
+      needsSave = true;
+    }
+    if (needsSave) {
+      saveConfig();
+    }
   } catch (e) {
     console.error('Failed to read config.json, using defaults.');
+    saveConfig();
   }
 } else {
   saveConfig();

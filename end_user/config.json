@@ -1,7 +1,7 @@
 {
   "serverUrl": "wss://remote-assist-server-ulus.onrender.com",
-  "deviceId": "",
-  "pin": "",
+  "deviceId": "748 319 602",
+  "pin": "916047",
   "runInBackground": true,
   "autoApprove": true
 }
