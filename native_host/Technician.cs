@@ -40,6 +40,7 @@ namespace RemoteAssistTechnician
         // UI Panels
         private Panel pnlConnect;
         private Panel pnlViewer;
+        private Panel pnlConnectBox;  // the centered login card
         private TextBox txtTargetId;
         private TextBox txtPin;
         private Button btnConnect;
@@ -77,6 +78,8 @@ namespace RemoteAssistTechnician
             };
 
             this.Shown += (s, e) => {
+                // Set initial center position on first display
+                CenterConnectBox();
                 ConnectToSignalingServer();
             };
         }
@@ -121,9 +124,11 @@ namespace RemoteAssistTechnician
             // Connect Panel
             pnlConnect = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(12, 16, 23) };
             
-            Panel box = new Panel { Size = new Size(440, 420), BackColor = Color.FromArgb(17, 24, 39) };
-            box.Location = new Point((this.ClientSize.Width - box.Width) / 2, (this.ClientSize.Height - box.Height) / 2);
-            box.Anchor = AnchorStyles.None;
+            pnlConnectBox = new Panel { Size = new Size(440, 420), BackColor = Color.FromArgb(17, 24, 39) };
+            Panel box = pnlConnectBox;
+
+            // Re-center whenever the panel resizes (e.g. window resize)
+            pnlConnect.Resize += (s, e) => CenterConnectBox();
 
             Label title = new Label { Text = "RemoteAssist Technician", Font = new Font("Segoe UI", 16f, FontStyle.Bold), ForeColor = Color.FromArgb(56, 189, 248), Location = new Point(30, 25), AutoSize = true };
             Label sub = new Label { Text = "Connect to Client by Partner ID & One-Time PIN", Font = new Font("Segoe UI", 9f), ForeColor = Color.FromArgb(156, 163, 175), Location = new Point(32, 60), AutoSize = true };
@@ -190,6 +195,15 @@ namespace RemoteAssistTechnician
             pnlViewer.Controls.Add(pbScreen);
 
             this.Controls.Add(pnlViewer);
+        }
+
+        private void CenterConnectBox()
+        {
+            if (pnlConnectBox == null || pnlConnect == null) return;
+            pnlConnectBox.Location = new Point(
+                (pnlConnect.ClientSize.Width - pnlConnectBox.Width) / 2,
+                (pnlConnect.ClientSize.Height - pnlConnectBox.Height) / 2
+            );
         }
 
         private void SetupMouseAndKeyboardInput(Control canvas)
