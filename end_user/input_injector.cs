@@ -25,6 +25,9 @@ namespace RemoteAssistInput
         [DllImport("user32.dll")]
         static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+        [DllImport("kernel32.dll")]
+        static extern IntPtr GetConsoleWindow();
+
         [DllImport("user32.dll")]
         static extern bool SetProcessDPIAware();
 
@@ -108,10 +111,15 @@ namespace RemoteAssistInput
                     switch (cmd)
                     {
                         case "HIDE_CONSOLE":
-                            IntPtr hwnd = FindWindow(null, "Remote Assist - End User Client");
-                            if (hwnd != IntPtr.Zero)
+                            IntPtr consoleHwnd = GetConsoleWindow();
+                            if (consoleHwnd != IntPtr.Zero)
                             {
-                                ShowWindow(hwnd, SW_HIDE);
+                                ShowWindow(consoleHwnd, SW_HIDE);
+                            }
+                            IntPtr titleHwnd = FindWindow(null, "Remote Assist - End User Client");
+                            if (titleHwnd != IntPtr.Zero)
+                            {
+                                ShowWindow(titleHwnd, SW_HIDE);
                             }
                             break;
 
