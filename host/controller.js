@@ -8,7 +8,7 @@ const UI_PORT = 48200;
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 
 let config = {
-  serverUrl: 'wss://priyex-remote-assist.up.railway.app',
+  serverUrl: 'wss://remote-assist-server-ulus.onrender.com',
   lastTargetId: ''
 };
 

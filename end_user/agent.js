@@ -9,7 +9,7 @@ const CONFIG_FILE = path.join(__dirname, 'config.json');
 
 // --- Configuration & Credentials ---
 let config = {
-  serverUrl: 'wss://priyex-remote-assist.up.railway.app',
+  serverUrl: 'wss://remote-assist-server-ulus.onrender.com',
   deviceId: generateDeviceId(),
   pin: generatePin(),
   runInBackground: true,
