@@ -1,0 +1,19 @@
+{
+  "serverUrl": {
+    "encrypted": true,
+    "iv": "f90c6726352898182414af5c84dc1044",
+    "data": "f2ae5996968e72f2cbafbd884a316eb43bb298a12c14ac73b5225eea1a63896ea1f42a92607f738c07c7de76bbddbeb4"
+  },
+  "deviceId": {
+    "encrypted": true,
+    "iv": "8e3dc5421329cfd3c8f5767b3f51c54d",
+    "data": "11411f7f8f2d090e083ec01cfd84c0e0"
+  },
+  "pin": {
+    "encrypted": true,
+    "iv": "237be9554605cea34dfbc13350abcff7",
+    "data": "ab267f4ecd9863e0f2d0e607f93d0d8f"
+  },
+  "runInBackground": true,
+  "autoApprove": true
+}

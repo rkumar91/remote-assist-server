@@ -76,8 +76,9 @@ let config = {
 if (fs.existsSync(CONFIG_FILE)) {
   try {
     const saved = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    let needsSave = false;
 
-    // Decrypt sensitive fields
+    // Decrypt sensitive fields or mark for encryption if found in plain text
     for (const field of SENSITIVE_FIELDS) {
       if (saved[field] !== undefined) {
         if (isEncrypted(saved[field])) {
@@ -86,13 +87,16 @@ if (fs.existsSync(CONFIG_FILE)) {
             saved[field] = decrypted;
           } else {
             delete saved[field];
+            needsSave = true;
           }
+        } else {
+          // Plain text value on disk: mark for immediate encryption
+          needsSave = true;
         }
       }
     }
 
     config = { ...config, ...saved };
-    let needsSave = false;
     if (!config.deviceId || !String(config.deviceId).trim()) {
       config.deviceId = generateDeviceId();
       needsSave = true;
