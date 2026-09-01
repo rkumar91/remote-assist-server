@@ -10,11 +10,20 @@ Simply double-click the batch launchers in the `RemoteAssistUtility` folder:
 
 | Step | Launcher | What it does |
 | :--- | :--- | :--- |
-| **1** | `START_END_USER.bat` | Starts the End-User utility. Displays ID & PIN, then auto-hides upon connection. |
-| **2** | `START_HOST.bat` | Starts the Host Controller. Enter the Target ID & PIN to take full control. |
+| **1 (Windows)** | `START_END_USER.bat` | Starts the End-User utility on Windows. Displays ID & PIN. |
+| **1 (macOS)** | `START_END_USER.command` | Starts the End-User utility on macOS (double-click in Finder). |
+| **2** | `START_HOST.bat` | Starts the Host Controller (Windows). Enter the Target ID & PIN to take full control. |
 | **Server** | `START_SERVER.bat` | Starts the central Signaling & Relay Server on port `9090` (for local hosting). |
 
 > **Quick 1-Click Demo:** Double-click `START_ALL_LOCAL_DEMO.bat` to launch all 3 components automatically in separate windows for testing on a single PC.
+
+---
+
+## 🍏 macOS End-User Setup
+When sharing from a Mac:
+1. Double-click `START_END_USER.command` inside `client_app` or `end_user`.
+2. First-time setup: macOS will ask for **Screen Recording** and **Accessibility** permissions under *System Settings > Privacy & Security*.
+3. Share the 9-digit **Device ID** and 6-digit **PIN** with the Host controller.
 
 ---
 
@@ -43,11 +52,13 @@ To connect two computers across different Wi-Fi networks or over the public inte
 
 ## ✨ Features & Architecture
 
-* **Double-Click Experience:** No complicated setup or command-line commands required.
+* **Cross-Platform End-User:** Seamless support for both **Windows** (via native C# GDI+ / SendInput) and **macOS** (via Quartz CoreGraphics native helpers).
+* **Double-Click Experience:** No complicated command lines required on either Windows or Mac.
 * **Native Low-Latency Input & Screen Capture:**
-  * Uses compiled native Windows Win32 API (`user32.dll` `SendInput`) for zero-lag mouse movement, clicks, scrolls, and keystrokes.
-  * Uses native GDI+/DXGI screen capture pipeline.
+  * Windows: Uses compiled Win32 API (`user32.dll` `SendInput`) and GDI+/DXGI screen capture pipeline.
+  * macOS: Uses CoreGraphics `CGEventPost` and `CGWindowListCreateImage` native event injection.
 * **Security & Access Control:**
+  * **Machine-Tied AES-256 Encryption:** Config credentials encrypted using MachineGuid (Windows) / IOPlatformUUID (macOS).
   * **9-Digit Target ID:** Identifies the remote computer.
   * **6-Digit Session PIN:** Dynamic one-time password required for every connection.
   * **Emergency Disconnect:** Both End-User and Host have instant one-click Disconnect buttons.
@@ -55,7 +66,7 @@ To connect two computers across different Wi-Fi networks or over the public inte
 * **Silent Background Execution:**
   * **Auto-Hide on Connection:** When the host takes control, the terminal and browser window automatically close/hide so nothing blocks the screen.
   * **Manual Hide:** The End-User can also click **"Hide Terminal"** in the UI anytime.
-  * **Stopping:** Stop anytime by ending **Node.js** in Windows Task Manager (`Ctrl + Shift + Esc`).
+  * **Stopping:** Stop anytime by ending **Node.js** in Windows Task Manager or macOS Activity Monitor.
 
 ---
 
@@ -63,18 +74,22 @@ To connect two computers across different Wi-Fi networks or over the public inte
 
 ```
 RemoteAssistUtility/
-├── START_END_USER.bat               # 1-Click End-User Client launcher
+├── START_END_USER.bat               # 1-Click End-User Client launcher (Windows)
 ├── START_HOST.bat                   # 1-Click Host Controller launcher
 ├── START_SERVER.bat                 # 1-Click Signaling Server launcher
 ├── START_ALL_LOCAL_DEMO.bat         # 1-Click complete demo launcher
+├── SYNC_CLIENT_APP.bat              # Packages client_app/ and client_app.zip
 ├── README.md                        # User guide & internet deployment instructions
 ├── end_user/
 │   ├── package.json
-│   ├── agent.js                     # End-User agent & local HTTP/WS bridge
-│   ├── input_injector.cs            # Native C# SendInput source
-│   ├── screen_capture.cs            # Native C# GDI+ screen capturer source
-│   ├── RemoteInput.exe              # Compiled native input injector
-│   ├── RemoteCapture.exe            # Compiled native screen capturer
+│   ├── agent.js                     # Cross-platform End-User agent & local HTTP/WS bridge
+│   ├── START_END_USER.bat           # Windows 1-click launcher
+│   ├── START_END_USER.command       # macOS 1-click launcher (Finder double-click)
+│   ├── mac_helper.py                # macOS native Quartz/CoreGraphics capture & input helper
+│   ├── input_injector.cs            # Windows native C# SendInput source
+│   ├── screen_capture.cs            # Windows native C# GDI+ screen capturer source
+│   ├── RemoteInput.exe              # Windows compiled native input injector
+│   ├── RemoteCapture.exe            # Windows compiled native screen capturer
 │   └── ui/                          # Modern Glassmorphic End-User UI
 ├── host/
 │   ├── package.json

@@ -10,18 +10,31 @@ const CONFIG_FILE = path.join(__dirname, 'config.json');
 
 // ============================================================
 //  MACHINE-TIED AES-256-CBC ENCRYPTION
-//  Derives unique key from Windows MachineGuid so config.json
-//  cannot be inspected as plain text or decrypted on another PC.
+//  Derives unique key from OS MachineGuid (Windows) or IOPlatformUUID (macOS)
+//  so config.json cannot be inspected as plain text or decrypted on another PC.
 // ============================================================
+const IS_MAC = process.platform === 'darwin';
+
 function getMachineKey() {
   try {
-    const guid = execSync(
-      'reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid',
-      { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
-    );
-    const match = guid.match(/MachineGuid\s+REG_SZ\s+([^\r\n]+)/);
-    if (match && match[1]) {
-      return crypto.createHash('sha256').update(match[1].trim()).digest();
+    if (IS_MAC) {
+      const uuid = execSync(
+        'ioreg -rd1 -c IOPlatformExpertDevice | grep -i IOPlatformUUID',
+        { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
+      );
+      const match = uuid.match(/"IOPlatformUUID"\s*=\s*"([^"]+)"/i);
+      if (match && match[1]) {
+        return crypto.createHash('sha256').update(match[1].trim()).digest();
+      }
+    } else {
+      const guid = execSync(
+        'reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid',
+        { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
+      );
+      const match = guid.match(/MachineGuid\s+REG_SZ\s+([^\r\n]+)/);
+      if (match && match[1]) {
+        return crypto.createHash('sha256').update(match[1].trim()).digest();
+      }
     }
   } catch (_) {}
   const fallback = require('os').hostname() + '-remote-assist-key-salt';
@@ -149,18 +162,26 @@ let screenResolution = { width: 1920, height: 1080 };
 function startInputSimulator() {
   if (inputProcess) return;
 
-  const exePath = path.join(__dirname, 'RemoteInput.exe');
-  if (!fs.existsSync(exePath)) {
-    console.error('RemoteInput.exe not found! Please compile it first.');
-    return;
-  }
-
   try {
-    inputProcess = spawn(exePath, [], {
-      cwd: __dirname,
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
+    if (IS_MAC) {
+      const scriptPath = path.join(__dirname, 'mac_helper.py');
+      inputProcess = spawn('python3', [scriptPath, '--input'], {
+        cwd: __dirname,
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+    } else {
+      const exePath = path.join(__dirname, 'RemoteInput.exe');
+      if (!fs.existsSync(exePath)) {
+        console.error('RemoteInput.exe not found! Please compile it first.');
+        return;
+      }
+
+      inputProcess = spawn(exePath, [], {
+        cwd: __dirname,
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+    }
 
     inputProcess.stdout.on('data', (data) => {
       const str = data.toString().trim();
@@ -175,6 +196,10 @@ function startInputSimulator() {
       }
     });
 
+    inputProcess.stderr.on('data', (data) => {
+      console.error('[Input Injector STDERR]', data.toString().trim());
+    });
+
     inputProcess.on('error', (err) => {
       console.error('[Input Injector Error]', err.message);
     });
@@ -183,7 +208,7 @@ function startInputSimulator() {
       inputProcess = null;
     });
   } catch (err) {
-    console.error('[Failed to launch RemoteInput.exe]', err.message);
+    console.error('[Failed to launch Input Injector]', err.message);
   }
 }
 
@@ -191,19 +216,27 @@ function startInputSimulator() {
 function startScreenCapture(fps = 20, quality = 55) {
   if (captureProcess) return;
 
-  const exePath = path.join(__dirname, 'RemoteCapture.exe');
-  if (!fs.existsSync(exePath)) {
-    console.error('RemoteCapture.exe not found! Please compile it first.');
-    return;
-  }
-
   try {
-    // Quality, FPS, Width, Height
-    captureProcess = spawn(exePath, [String(quality), String(fps)], {
-      cwd: __dirname,
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
+    if (IS_MAC) {
+      const scriptPath = path.join(__dirname, 'mac_helper.py');
+      captureProcess = spawn('python3', [scriptPath, '--capture', String(quality), String(fps)], {
+        cwd: __dirname,
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+    } else {
+      const exePath = path.join(__dirname, 'RemoteCapture.exe');
+      if (!fs.existsSync(exePath)) {
+        console.error('RemoteCapture.exe not found! Please compile it first.');
+        return;
+      }
+
+      // Quality, FPS, Width, Height
+      captureProcess = spawn(exePath, [String(quality), String(fps)], {
+        cwd: __dirname,
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+    }
 
     let buffer = Buffer.alloc(0);
     let expectedLength = null;
@@ -245,7 +278,7 @@ function startScreenCapture(fps = 20, quality = 55) {
       captureProcess = null;
     });
   } catch (err) {
-    console.error('[Failed to launch RemoteCapture.exe]', err.message);
+    console.error('[Failed to launch Screen Capture]', err.message);
   }
 }
 
@@ -287,7 +320,7 @@ function connectToSignalingServer() {
           console.log(`[Host Connected] Session ID: ${msg.sessionId} from Host: ${msg.partnerId}`);
           currentSession = { partnerId: msg.partnerId, sessionId: msg.sessionId, startedAt: Date.now() };
           
-          if (config.runInBackground && inputProcess && inputProcess.stdin) {
+          if (config.runInBackground && inputProcess && inputProcess.stdin && !IS_MAC) {
             try { inputProcess.stdin.write('HIDE_CONSOLE\n'); } catch (e) {}
           }
 
@@ -396,7 +429,8 @@ function broadcastUiState() {
     serverStatus,
     runInBackground: config.runInBackground,
     hasActiveSession: !!currentSession,
-    screenResolution
+    screenResolution,
+    platform: IS_MAC ? 'macOS' : 'Windows'
   };
 
   const payload = JSON.stringify(state);
@@ -449,7 +483,8 @@ uiWss.on('connection', (ws) => {
     serverStatus,
     runInBackground: config.runInBackground,
     hasActiveSession: !!currentSession,
-    screenResolution
+    screenResolution,
+    platform: IS_MAC ? 'macOS' : 'Windows'
   }));
 
   ws.on('message', (msg) => {
@@ -481,7 +516,7 @@ uiWss.on('connection', (ws) => {
       } else if (data.action === 'terminate_session') {
         terminateSession();
       } else if (data.action === 'hide_console') {
-        if (inputProcess && inputProcess.stdin) {
+        if (inputProcess && inputProcess.stdin && !IS_MAC) {
           try { inputProcess.stdin.write('HIDE_CONSOLE\n'); } catch (e) {}
         }
       } else if (data.action === 'exit_app') {
@@ -510,12 +545,14 @@ connectToSignalingServer();
 uiServer.listen(UI_PORT, () => {
   console.log('==================================================');
   console.log(`[End-User Utility] UI running on http://localhost:${UI_PORT}`);
+  console.log(`[Platform]   : ${IS_MAC ? 'macOS' : 'Windows'}`);
   console.log(`[Device ID]  : ${config.deviceId}`);
   console.log(`[Session PIN]: ${config.pin}`);
   console.log('==================================================');
 
-  // Launch browser UI
-  exec(`start http://localhost:${UI_PORT}`);
+  // Launch browser UI automatically based on OS
+  const openCmd = IS_MAC ? `open http://localhost:${UI_PORT}` : `start http://localhost:${UI_PORT}`;
+  exec(openCmd);
 });
 
 process.on('SIGINT', () => {
